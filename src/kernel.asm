@@ -70,6 +70,20 @@ if_enter:
     cmp ax, 0
     je help
 
+    mov si, shell_buffer
+    mov di, shell_reboot
+    mov cx, 64
+    call shell
+    cmp ax, 0
+    je reboot
+
+    mov si, shell_buffer
+    mov di, shell_clear
+    mov cx, 64
+    call shell
+    cmp ax, 0
+    je clear
+
     jmp err_command
 
 if_backspace:
@@ -127,6 +141,15 @@ help:
     call str_loop2
     jmp shell_prepare
 
+reboot:
+    jmp 0xFFFF:0x0000
+
+clear:
+    mov ah, 0x00
+    mov al, 03h
+    int 0x10
+    jmp shell_prepare
+
 err_command:
     mov si, shell_err
     call str_loop2
@@ -143,5 +166,7 @@ msg_booted: db "Kernel booted!", 13, 10, 0
 shell_buffer: times 64 db 0
 shell_err: db "Unknown command!", 13, 10, 0
 shell_help: db "hello", 0, 13, 10
+shell_reboot: db "reboot", 0, 13, 10
+shell_clear: db "clear", 0, 13, 10
 do_hello: db "Hello from shell v0.01!", 13, 10, 0
 times 1024-($-$$) db 0
