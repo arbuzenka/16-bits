@@ -10,8 +10,8 @@ start2:
     mov ds, ax
     mov sp, 0x7e00
 
-    mov si, msg_bar
-    call str_loop2
+    ;mov si, msg_bar
+    ;call str_loop2
 
     mov si, msg_booted
     call str_loop2
@@ -64,7 +64,7 @@ if_enter:
     int 0x10
 
     mov si, shell_buffer
-    mov di, shell_help
+    mov di, shell_hello
     mov cx, 64
     call shell
     cmp ax, 0
@@ -83,6 +83,28 @@ if_enter:
     call shell
     cmp ax, 0
     je clear
+
+    mov si, shell_buffer
+    mov di, shell_cpuinfo
+    mov cx, 64
+    call shell
+    cmp ax, 0
+    je cpuinfo
+
+    mov si, shell_buffer
+    mov di, shell_time
+    mov cx, 64
+    call shell
+    cmp ax, 0
+    je time
+
+    mov si, shell_buffer
+    mov di, shell_memory
+    mov cx, 64
+    call shell
+    cmp ax, 0
+    je memory
+
 
     jmp err_command
 
@@ -150,6 +172,99 @@ clear:
     int 0x10
     jmp shell_prepare
 
+cpuinfo:
+    push ax
+    push bx
+    push dx
+    push cx
+
+    xor ax, ax
+    cpuid   ;1 ebx, 2 edx, 3 ecx
+
+    mov dword [cpuid_info], ebx
+    mov dword [cpuid_info + 4], edx
+    mov dword [cpuid_info + 8], ecx
+    
+    mov si, cpuid_info
+    call str_loop2
+
+    mov al, 0x0D
+    int 0x10
+
+    mov al, 0x0A
+    int 0x10
+
+    pop cx
+    pop dx 
+    pop bx
+    pop ax
+
+    jmp shell_prepare
+
+time:
+    mov ah, 0x02    ;ch часы, cl минуты, dh сек
+    int 0x1A
+
+    mov al, ch
+    call bcd_print
+
+    mov ah, 0x0e
+    mov al, ':'
+    int 0x10
+
+    mov al, cl
+    call bcd_print
+
+    mov ah, 0x0e
+    mov al, ':'
+    int 0x10
+
+    mov al, dh
+    call bcd_print
+
+    mov ah, 0x0e
+    mov al, 0x0D
+    int 0x10
+
+    mov ah, 0x0e
+    mov al, 0x0A
+    int 0x10
+
+    jmp shell_prepare
+
+bcd_print:
+    push ax
+
+    shr al, 4
+    add al, 0x30  
+    mov ah, 0x0e
+    int 0x10
+
+    pop ax  
+
+    and al, 0x0F
+    add al, 0x30 
+    mov ah, 0x0e
+    int 0x10 
+
+    jmp done
+
+memory:    ;нужно доделать (перевести в адекватные числа)
+    xor ax, ax
+
+    int 0x12
+
+    mov si, ax
+    call str_loop2
+
+    mov al, 0x0D
+    int 0x10
+
+    mov al, 0x0A
+    int 0x10
+
+    jmp shell_prepare
+
 err_command:
     mov si, shell_err
     call str_loop2
@@ -161,12 +276,17 @@ halt2:
     jmp halt2
 
 msg_invite: db ">", 0
-msg_bar: db "==================", 13, 10, 0
+;msg_bar: db "==================", 13, 10, 0
 msg_booted: db "Kernel booted!", 13, 10, 0
 shell_buffer: times 64 db 0
 shell_err: db "Unknown command!", 13, 10, 0
-shell_help: db "hello", 0, 13, 10
+shell_hello: db "hello", 0, 13, 10
 shell_reboot: db "reboot", 0, 13, 10
 shell_clear: db "clear", 0, 13, 10
+shell_cpuinfo: db "cpuinfo", 0, 13, 10
+shell_memory: db "mem", 0, 13, 10
+shell_time: db "time", 0, 13, 10
+bcd_buffer: times 12 db 0
 do_hello: db "Hello from shell v0.01!", 13, 10, 0
+cpuid_info: times 32 db 0
 times 1024-($-$$) db 0
